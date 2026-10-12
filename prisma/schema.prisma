@@ -1,0 +1,310 @@
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id              String            @id @default(auto()) @map("_id") @db.ObjectId
+  firstName       String
+  lastName        String
+  email           String            @unique
+  password        String
+  profileImage    String?           @default("https://i.ibb.co.com/nrs3FjM/images.png")
+  role            UserRole?         @default(User)
+  status          UserStatus        @default(Active)
+  customerId      String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  shippingAddress shippingAddress[]
+  order           order[]
+  Review          Review[]
+  businessProfile BusinessProfile[]
+  Subscription    Subscription[]
+
+  @@map("users")
+}
+
+model PendingUser {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  firstName String
+  lastName  String
+  email     String    @unique
+  password  String
+  role      UserRole? @default(User)
+  otpCode   String
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  @@map("pendingUsers")
+}
+
+model Otp {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String   @unique
+  otpCode   String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("otps")
+}
+
+enum UserStatus {
+  Active
+  Blocked
+  Deleted
+}
+
+enum UserRole {
+  Admin
+  User
+}
+
+model BusinessProfile {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  businessName    String?
+  businessEmail   String?
+  location        String?
+  googleReviewUrI String?
+  primaryColur    String?
+  businessLogo    String?
+  isSubscribe     Boolean?
+  scanningCount   Int?          @default(0)
+  //relation 
+  userId          String        @db.ObjectId
+  user            User?         @relation(fields: [userId], references: [id])
+  order           order[]
+  subscription    Subscription?
+
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  Coupon         Coupon[]
+  businessReview businessReview[]
+}
+
+model shippingAddress {
+  id           String  @id @default(auto()) @map("_id") @db.ObjectId
+  user         User?   @relation(fields: [userId], references: [id])
+  userId       String? @db.ObjectId
+  firstName    String
+  lastName     String
+  email        String
+  phone        String?
+  businessName String
+  address1     String
+  address2     String
+  city         String
+  appartMent   String?
+  zipcode      String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  order     order[]
+
+  @@map("shippingAddresses")
+}
+
+model shippingCost {
+  id   String @id @default(auto()) @map("_id") @db.ObjectId
+  cost Float
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model product {
+  id           String         @id @default(auto()) @map("_id") @db.ObjectId
+  title        String
+  images       String[]
+  description  String
+  oldPrice     Float?
+  price        Float
+  quantity     Int
+  rating       Float          @default(0)
+  reviews      Review[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  orderProduct orderProduct[]
+
+  @@map("products")
+}
+
+model order {
+  id                String           @id @default(auto()) @map("_id") @db.ObjectId
+  orderId           String           @unique
+  user              User?            @relation(fields: [userId], references: [id])
+  userId            String?          @db.ObjectId
+  businessProfileId String           @db.ObjectId
+  businessProfile   BusinessProfile  @relation(fields: [businessProfileId], references: [id])
+  products          orderProduct[]
+  totalAmount       Float
+  isPaid            Boolean?
+  status            OrderStatus      @default(Processed)
+  cancelReason      String?
+  shippingAddressId String?          @db.ObjectId
+  shippingAddress   shippingAddress? @relation(fields: [shippingAddressId], references: [id])
+  paymentMethodId   String?
+  paymentIntentId   String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@map("orders")
+}
+
+model orderProduct {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  order     order?   @relation(fields: [orderId], references: [id])
+  orderId   String?  @db.ObjectId
+  product   product? @relation(fields: [productId], references: [id])
+  productId String?  @db.ObjectId
+  quantity  Int
+  price     Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("orderProducts")
+}
+
+enum OrderStatus {
+  Processed
+  Shipped
+  InRoute
+  Delivered
+  Cancelled
+}
+
+model Review {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  rating    Int
+  comment   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  product   product? @relation(fields: [productId], references: [id])
+  productId String?  @db.ObjectId
+  userId    String?  @db.ObjectId
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@map("reviews")
+}
+
+model businessReview {
+  id                String          @id @default(auto()) @map("_id") @db.ObjectId
+  email             String?
+  comment           String?
+  reviewStatus      ReviewStatus
+  //relations
+  businessProfile   BusinessProfile @relation(fields: [businessProfileId], references: [id])
+  businessProfileId String          @db.ObjectId
+  //Dates
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@map("businessReviews")
+}
+
+enum ReviewStatus {
+  Excellent
+  Neutral
+  Bad
+}
+
+model Coupon {
+  id                String          @id @default(auto()) @map("_id") @db.ObjectId
+  title             String
+  description       String
+  code              String
+  isDefault         Boolean         @default(false)
+  discountType      DiscountType
+  discountValue     Float
+  businessProfileId String          @db.ObjectId
+  businessProfile   BusinessProfile @relation(fields: [businessProfileId], references: [id])
+  status            CouponStatus    @default(Active)
+  startDate         DateTime
+  endDate           DateTime
+  expiresTime       Int
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@map("coupons")
+}
+
+enum DiscountType {
+  Percentage
+  Flat
+}
+
+enum CouponStatus {
+  Active
+  Expired
+  Inactive
+}
+
+model contact {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  firstName String
+  lastName  String
+  email     String
+  message   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Plan {
+  id           String         @id @default(auto()) @map("_id") @db.ObjectId
+  title        String
+  amount       Float
+  description  String
+  planType     planType
+  interval     PlanInterval   @default(month)
+  priceId      String
+  productId    String
+  feature      String[]
+  active       Boolean        @default(true)
+  currency     String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  Subscription Subscription[]
+
+  @@map("plans")
+}
+
+enum planType {
+  Starter
+  Pro
+  Ultimate
+}
+
+enum PlanInterval {
+  month
+  year
+}
+
+model Subscription {
+  id                   String             @id @default(auto()) @map("_id") @db.ObjectId
+  paymentMethodId      String
+  priceId              String
+  stripeSubscriptionId String
+  status               SubscriptionStatus @default(ACTIVE)
+  businessProfileId    String             @unique @db.ObjectId
+  businessProfile      BusinessProfile    @relation(fields: [businessProfileId], references: [id])
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  userId               String             @db.ObjectId
+  user                 User               @relation(fields: [userId], references: [id])
+  Plan                 Plan               @relation(fields: [planId], references: [id])
+  planId               String             @db.ObjectId
+
+  @@map("subscriptions")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+  CANCELLED
+}
